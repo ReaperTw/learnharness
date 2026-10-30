@@ -84,6 +84,8 @@ On Windows, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ins
 The Windows shortcut uses a console-free launcher and the same AppUserModelID as the desktop window, so the taskbar uses the LearnHarness icon and groups the running app with its shortcut. Source-mode taskbar relaunch uses the same launcher; it does not launch bare Electron.
 The on-screen Next.js development indicator is disabled; compilation and runtime error reporting remain enabled.
 
+For a Windows checkout in a Google Drive–synced folder, dependencies can live outside the synced tree with a directory junction at `node_modules`. This machine uses `%LOCALAPPDATA%\AZA-Dependencies\learnharness\node_modules`. The Next.js configuration detects external dependencies and adds their location as a narrow Turbopack root; keep both the junction and its target available. This does not exclude `.next` or guarantee Google Drive ignores junctions. After reinstalling dependencies, verify `node_modules` is still a junction before allowing synchronization.
+
 See the [development guide](docs/development.md), [architecture](docs/architecture.md), and [desktop release guide](docs/desktop-release.md).
 
 Questions, bug reports, and feature requests: [GitHub Issues](https://github.com/amosblomqvist/learnharness/issues).
