@@ -61,6 +61,7 @@ import {
 } from "../core/input-events.ts";
 import { steerDelivered } from "../core/contracts.ts";
 import type {CallUsage} from "../core/contracts.ts";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "../core/locale.ts";
 
 /**
  * One chat turn over the server-owned native record. Framework-free (plain
@@ -159,7 +160,7 @@ export async function handleChatRequest(
 	req: Request,
 	buildAgent?: (opts: AgentBuildOptions & { teaching: boolean }) => TeachingAgent,
 ): Promise<Response> {
-	let body: { chatId?: unknown; input?: unknown };
+	let body: { chatId?: unknown; input?: unknown; locale?: unknown };
 	try {
 		body = await req.json();
 	} catch {
@@ -176,7 +177,10 @@ export async function handleChatRequest(
 		}
 		throw err;
 	}
-	return handleChatInput(chatId, input, buildAgent);
+	if (body.locale !== undefined && !isLocale(body.locale)) {
+		return Response.json({ error: "Unsupported interface language" }, { status: 400 });
+	}
+	return handleChatInput(chatId, input, buildAgent, body.locale);
 }
 
 /**
@@ -188,6 +192,7 @@ export async function handleChatInput(
 	chatId: string,
 	input: TurnInput,
 	buildAgent?: (opts: AgentBuildOptions & { teaching: boolean }) => TeachingAgent,
+	requestLocale?: Locale,
 ): Promise<Response> {
 	let record = stores.chatStore.getChat(chatId);
 	if (!record) {
@@ -358,6 +363,10 @@ export async function handleChatInput(
 	let persistBaseCount = stagedAutomatic ? record.messages.length : agentMessages.length;
 	try {
 		if (!stagedAutomatic) stores.chatStore.saveMessages(chatId, merged);
+		// Persist only on admitted foreground input; automatic turns reuse it.
+		if (requestLocale && record.settings?.responseLocale !== requestLocale) {
+			stores.chatStore.saveSettings(chatId, { ...record.settings, responseLocale: requestLocale });
+		}
 	} catch (err) {
 		console.error(`[chat ${chatId}] write-ahead persist failed:`, err);
 		endTurn(chatId);
@@ -427,6 +436,7 @@ export async function handleChatInput(
 	});
 	const agentOpts: AgentBuildOptions = {
 		engine,
+		responseLocale: requestLocale ?? (isLocale(record.settings?.responseLocale) ? record.settings.responseLocale : DEFAULT_LOCALE),
 		callPurpose,
 		requestCycle,
 		messages: asAgentMessages(agentMessages),

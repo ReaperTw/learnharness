@@ -55,6 +55,15 @@ All three platforms support in-app updates.
 
 **Dictation:** Create a [Deepgram API key](https://console.deepgram.com/) with the **Member role or higher** ([required for token minting](https://developers.deepgram.com/reference/auth/tokens/grant)) and add it under **Settings → Providers → Dictation**. Choose the language below the key; **Multilingual** supports automatic recognition and mixed-language speech. A `403 Insufficient permissions` error during token minting can indicate an insufficient key role.
 
+## Language / 語言
+
+This fork defaults to **繁體中文（台灣）**. Switch immediately between Traditional Chinese and English in **設定 → 一般 → 語言** / **Settings → General → Language**.
+
+- The web app remembers the choice in this browser. The desktop app also stores it in `locale.json` under its user-data directory, so restarting on a different local port does not reset it; native application menus follow the choice.
+- Subsequent teaching, assessment, and practice turns receive the selected language as their default. Explicit learner requests for another language take precedence. Automatic continuation turns retain the session's last foreground language.
+- User text, existing conversations, code, model/provider names, and external provider diagnostics are not automatically translated. Dictation recognition has its own separate language setting.
+- Install this fork from source to use these changes; the upstream download links above do not include this fork's localization.
+
 ## Your keys, your data
 
 - **Your keys and models.** No LearnHarness subscription or markup. You pay your providers for usage; a live cost meter shows model costs.

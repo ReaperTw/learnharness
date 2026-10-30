@@ -1,4 +1,5 @@
 "use client";
+import { useLocale } from "@/components/locale";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActivity } from "@/components/activity-dock";
@@ -6,7 +7,7 @@ import { usePopoverDismiss } from "@/components/popover-dismiss";
 import { useSettingsSaved } from "@/components/settings-signal";
 import { formatTokens } from "@/components/usage-format";
 import { Hint } from "@/components/ui/hint";
-import { timeAgo } from "@/components/sidebar";
+import { localizedTimeAgo } from "@/components/sidebar";
 import { resolveSettings } from "@/src/core";
 
 /**
@@ -183,6 +184,7 @@ export function CoverageMenuBody({
 	extracting: boolean;
 	onExtract: () => void;
 }) {
+	const { t } = useLocale();
 	const busy = coverage.running || extracting;
 	const complete = coverage.uncoveredTokens === 0 && coverage.uncoveredCount === 0;
 	return (
@@ -190,17 +192,17 @@ export function CoverageMenuBody({
 			{busy ? (
 				<span className="flex items-center gap-1.5 text-muted-foreground" data-testid="ctx-coverage-running">
 					<span className="size-1.5 animate-pulse rounded-full bg-foreground/70" aria-hidden />
-					extracting…
+					{t("extracting…")}
 				</span>
 			) : complete ? (
-				<span className="text-muted-foreground">fully extracted</span>
+				<span className="text-muted-foreground">{t("fully extracted")}</span>
 			) : (
 				<span className="flex flex-col">
 					<span className="tabular-nums text-foreground">
-						{formatTokens(coverage.uncoveredTokens)} tok uncovered
+						{t("{count} tok uncovered", { count: formatTokens(coverage.uncoveredTokens) })}
 					</span>
 					<span className="tabular-nums text-muted-foreground">
-						{coverage.uncoveredCount} message{coverage.uncoveredCount === 1 ? "" : "s"} unextracted
+						{t(coverage.uncoveredCount === 1 ? "{count} message unextracted" : "{count} messages unextracted", { count: coverage.uncoveredCount })}
 					</span>
 				</span>
 			)}
@@ -211,7 +213,7 @@ export function CoverageMenuBody({
 				disabled={busy || complete}
 				className="flex items-center justify-center rounded-lg border px-2 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
 			>
-				{busy ? "Running" : "Extract"}
+				{t(busy ? "Running" : "Extract")}
 			</button>
 		</div>
 	);
@@ -241,6 +243,7 @@ export function ringFill(uncoveredTokens: number, chunkTokens: number): number {
  * threshold/kill-switch re-read live).
  */
 export function CoverageRing({ chatId, refreshKey = 0 }: { chatId: string; refreshKey?: number }) {
+	const { t } = useLocale();
 	const [graph, setGraph] = useState<GraphRead | null>(null);
 	const [coverage, setCoverage] = useState<SessionCoverage | null>(null);
 	const [open, setOpen] = useState(false);
@@ -301,7 +304,7 @@ export function CoverageRing({ chatId, refreshKey = 0 }: { chatId: string; refre
 		<div ref={rootRef} className="lh-no-drag relative shrink-0">
 			<Hint
 				// Trimmed (owner, subtlety round 2026-09-25).
-				label="How much of this session isn't mapped yet"
+				label={t("How much of this session isn't mapped yet")}
 				side="bottom"
 			>
 				<button
@@ -359,46 +362,47 @@ export function CoverageRingGlyph({ fill, running }: { fill: number; running: bo
  *  covered/uncovered tokens, message coverage, the threshold, the last
  *  fold's age. */
 export function CoverageRingDetail({ coverage, chunkTokens }: { coverage: SessionCoverage; chunkTokens: number }) {
+	const { t } = useLocale();
 	return (
 		<>
 			<div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-				Extraction coverage
+				{t("Extraction coverage")}
 			</div>
 			<div className="flex flex-col gap-1 text-muted-foreground">
 				<div className="flex justify-between gap-2">
-					<span>Uncovered</span>
+					<span>{t("Uncovered")}</span>
 					<span className="tabular-nums text-card-foreground">
-						{formatTokens(coverage.uncoveredTokens)} tokens
+						{t("{count} tokens", { count: formatTokens(coverage.uncoveredTokens) })}
 					</span>
 				</div>
 				<div className="flex justify-between gap-2">
-					<span>Covered</span>
+					<span>{t("Covered")}</span>
 					<span className="tabular-nums text-card-foreground">
-						{formatTokens(coverage.coveredTokens)} tokens
+						{t("{count} tokens", { count: formatTokens(coverage.coveredTokens) })}
 					</span>
 				</div>
 				<div className="flex justify-between gap-2">
-					<span>Messages</span>
+					<span>{t("Messages")}</span>
 					<span className="tabular-nums text-card-foreground">
 						{coverage.coveredCount} / {coverage.totalMessages}
 					</span>
 				</div>
 				<div className="flex justify-between gap-2">
-					<span>Chunk threshold</span>
+					<span>{t("Chunk threshold")}</span>
 					<span className="tabular-nums text-card-foreground">
-						{formatTokens(chunkTokens)} tokens
+						{t("{count} tokens", { count: formatTokens(chunkTokens) })}
 					</span>
 				</div>
 				<div className="flex justify-between gap-2">
-					<span>Last extraction</span>
+					<span>{t("Last extraction")}</span>
 					<span className="tabular-nums text-card-foreground">
-						{coverage.lastFoldedAt ? timeAgo(coverage.lastFoldedAt) : "—"}
+						{coverage.lastFoldedAt ? localizedTimeAgo(coverage.lastFoldedAt, t) : "—"}
 					</span>
 				</div>
 				{coverage.running && (
 					<div className="flex justify-between gap-2" data-testid="coverage-ring-running">
-						<span>Status</span>
-						<span className="text-card-foreground">extracting…</span>
+						<span>{t("Status")}</span>
+						<span className="text-card-foreground">{t("extracting…")}</span>
 					</div>
 				)}
 			</div>

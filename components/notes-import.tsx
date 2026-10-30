@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLocale } from "@/components/locale";
 
 // Transport-only types: never import the server's extraction/agent module here.
 export interface NotesImportResult {
@@ -53,24 +54,22 @@ export async function postNotesImport(files: readonly File[]): Promise<NotesImpo
 
 /** Only error text survives a request; selected Files stay request-local. */
 export function useNotesImport(callbacks: { onStart?: () => void; onFinish?: () => void } = {}) {
-	const [errors, setErrors] = useState<string[]>([]);
+	const { t } = useLocale();
+	const [failures, setFailures] = useState<Array<Omit<NotesImportResult, "ok" | "outcome" | "requestIndex">>>([]);
 	const [importing, setImporting] = useState(false);
 	const pending = useRef(false);
 	const submit = async (files: File[]) => {
 		if (pending.current || files.length === 0) return;
 		pending.current = true;
 		setImporting(true);
-		setErrors([]);
+		setFailures([]);
 		try {
 			callbacks.onStart?.();
 			const results = await postNotesImport(files);
-			setErrors(results
-				.filter((result) => !result.ok)
-				.sort((a, b) => a.requestIndex - b.requestIndex)
-				.map((r) => `${r.filePath}: ${r.error}${r.code ? `\n${r.code}${r.provider ? ` — ${r.provider}` : ""}${r.missing?.length ? ` — ${r.missing.join(", ")}` : ""}${r.slots?.length ? ` — ${r.slots.join(", ")}` : ""}` : ""}`));
+			setFailures(results.filter((result) => !result.ok).sort((a, b) => a.requestIndex - b.requestIndex));
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			setErrors(files.map((file) => `${file.name}: ${message}`));
+			setFailures(files.map((file) => ({ filePath: file.name, error: message })));
 		} finally {
 			pending.current = false;
 			setImporting(false);
@@ -78,7 +77,7 @@ export function useNotesImport(callbacks: { onStart?: () => void; onFinish?: () 
 		}
 	};
 	return {
-		errors, importing,
+		errors: failures.map((r) => `${r.filePath}: ${t(r.error ?? "")}${r.code ? `\n${r.code}${r.provider ? ` — ${r.provider}` : ""}${r.missing?.length ? ` — ${r.missing.map((value) => t(value)).join(", ")}` : ""}${r.slots?.length ? ` — ${r.slots.map((value) => t(value)).join(", ")}` : ""}` : ""}`), importing,
 		onImportFiles: (files: FileList | null) => { if (files) void submit(Array.from(files)); },
 	};
 }

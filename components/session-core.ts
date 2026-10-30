@@ -14,6 +14,7 @@
  */
 
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
+import { getLocale } from "../src/core/locale.ts";
 import type { ToolResultMessage } from "@earendil-works/pi-ai";
 import {
 	needsContinuation,
@@ -339,7 +340,7 @@ export class SessionModel {
 	 *  never persisted (write-ahead happens only on acceptance), so the
 	 *  retry waits out the running turn and re-POSTs the SAME body. */
 	async postInputEvent(input: ChatInput, signal?: AbortSignal): Promise<Response> {
-		const body = JSON.stringify({ chatId: this.chatId, input });
+		const body = JSON.stringify({ chatId: this.chatId, input, locale: getLocale() });
 		const init: RequestInit = {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

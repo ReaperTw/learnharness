@@ -10,6 +10,7 @@ import type { LhMessage } from "../native-messages.ts";
 import type { Phase3 } from "../phases.ts";
 import type { PlanNodeStatus, PlanTree } from "./plan.ts";
 import type { EmissionStats } from "./graph.ts";
+import type { Locale } from "../locale.ts";
 
 // ─── Chat records (the session store's on-disk format) ───────────────────────
 
@@ -71,6 +72,8 @@ export const CURRENT_CHAT_VERSION = 1;
  *  turn by construction. Background sub-agents are NEVER overridden
  *  (config-pinned: they're infrastructure, not conversation). */
 export interface ChatSettings {
+	/** Last foreground language, retained for automatic continuation turns. */
+	responseLocale?: Locale;
 	/** pi-ai catalog coordinates: the provider that owns the model. Only
 	 *  "openrouter" is configured today; the field exists so a second
 	 *  provider needs no schema change. */

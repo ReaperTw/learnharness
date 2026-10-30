@@ -1,4 +1,5 @@
 "use client";
+import { localizeActivity, useLocale } from "@/components/locale";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIcon, BotIcon, FileTextIcon, PenToolIcon, PlayIcon, SearchIcon, SquareIcon, WaypointsIcon } from "lucide-react";
@@ -257,12 +258,12 @@ export function toBlobs(feed: ActivityFeed): ActivityBlob[] {
 }
 
 /** Elapsed as a compact ticking string: 45s / 3m 04s / 1h 12m. */
-export function formatElapsed(ms: number): string {
+export function formatElapsed(ms: number, t?: (source: string, values?: Record<string, string | number>) => string): string {
 	const s = Math.max(0, Math.floor(ms / 1000));
-	if (s < 60) return `${s}s`;
+	if (s < 60) return t ? t("{count}s", { count: s }) : `${s}s`;
 	const m = Math.floor(s / 60);
-	if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
-	return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+	if (m < 60) return t ? t("{minutes}m {seconds}s", { minutes: m, seconds: String(s % 60).padStart(2, "0") }) : `${m}m ${String(s % 60).padStart(2, "0")}s`;
+	return t ? t("{hours}h {minutes}m", { hours: Math.floor(m / 60), minutes: String(m % 60).padStart(2, "0") }) : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 }
 
 // ─── The section (the sidebar's bottom strip) ─────────────────────────────────
@@ -289,6 +290,7 @@ const KIND_ICON: Record<JobKind, typeof SearchIcon> = {
 type AbortState = "pending" | "failed";
 
 export function ActivitySection({ feed: feedProp }: { feed?: ActivityFeed }) {
+	const { t } = useLocale();
 	const ctx = useContext(ActivityContext);
 	const feed = feedProp ?? ctx.feed;
 	const refresh = ctx.refresh;
@@ -347,9 +349,9 @@ export function ActivitySection({ feed: feedProp }: { feed?: ActivityFeed }) {
 		<section data-testid="activity-section" className="border-t border-border px-3 pb-3 pt-2">
 			<div className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground/70">
 				<ActivityIcon className="size-3" />
-				Background agents
+				{t("Background agents")}
 				{blobs.length > 0 && (
-					<span className="ml-auto tabular-nums" data-testid="activity-total-cost" title="Total running cost (inferred)">
+					<span className="ml-auto tabular-nums" data-testid="activity-total-cost" title={t("Total running cost (inferred)")}>
 						{planCostLabel(totalCost, subscriptionLabels(blobs.map((blob) => blob.model)))}
 				</span>
 				)}
@@ -389,10 +391,11 @@ function ActivityBlobRow({
 	abortState: AbortState | undefined;
 	onAbort: () => void;
 }) {
+	const { t } = useLocale();
 	const Icon = blob.process === "extraction" ? WaypointsIcon : (blob.jobKind && KIND_ICON[blob.jobKind]) || BotIcon;
 	const label =
 		blob.process === "extraction"
-			? `Extraction — ${blob.phase ?? "running"}`
+			? t("Extraction — {phase}", { phase: t(blob.phase ?? "running") })
 			: blob.jobKind === "research"
 				? "Researcher"
 				: blob.jobKind === "demo"
@@ -402,6 +405,7 @@ function ActivityBlobRow({
 						: blob.jobKind === "pdf"
 							? "PDF reader"
 							: "Sub-agent";
+	const activity = blob.activity ? localizeActivity(blob.activity, t) : blob.activity;
 	return (
 		<div
 			data-testid={`activity-blob-${blob.process}`}
@@ -417,16 +421,16 @@ function ActivityBlobRow({
 				<span className="min-w-0 flex-1">
 					<span className="block truncate font-medium text-card-foreground">{blob.title}</span>
 					{blob.activity ? (
-						<span className="block truncate text-muted-foreground" title={blob.activity}>
-							{blob.activity}
+						<span className="block truncate text-muted-foreground" title={activity}>
+							{activity}
 						</span>
 					) : (
-						<span className="block truncate text-muted-foreground/80">{label}</span>
+						<span className="block truncate text-muted-foreground/80">{t(label)}</span>
 					)}
 				</span>
 				<span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
 					<span data-testid="activity-blob-cost">{planCostLabel(blob.cost, subscriptionLabel(blob.model))}</span>
-					<span data-testid="activity-blob-elapsed">{formatElapsed(now - blob.startedAt)}</span>
+					<span data-testid="activity-blob-elapsed">{formatElapsed(now - blob.startedAt, t)}</span>
 				</span>
 			</button>
 			{/* The explicit END always on the blob's face (SCOPE) — the popover
@@ -437,8 +441,8 @@ function ActivityBlobRow({
 				data-testid="activity-abort"
 				onClick={onAbort}
 				disabled={abortState !== undefined}
-				title={abortState === "failed" ? "Abort failed — try again" : "End this background process"}
-				aria-label={`End ${label} in ${blob.title}`}
+				title={t(abortState === "failed" ? "Abort failed — try again" : "End this background process")}
+				aria-label={t("End {label} in {title}", { label: t(label), title: blob.title })}
 				className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
 			>
 				<SquareIcon className="size-3" />
@@ -451,24 +455,24 @@ function ActivityBlobRow({
 				>
 					<div className="mb-1.5 flex items-center gap-2">
 						<Icon className="size-3.5 text-muted-foreground" />
-						<span className="font-medium">{label}</span>
+						<span className="font-medium">{t(label)}</span>
 						<span className="ml-auto tabular-nums text-muted-foreground">
-							{formatElapsed(now - blob.startedAt)}
+							{formatElapsed(now - blob.startedAt, t)}
 						</span>
 					</div>
 					<div className="flex flex-col gap-1 text-muted-foreground">
 						<div className="truncate text-card-foreground" title={blob.title}>
 							{blob.title}
 						</div>
-						{blob.activity && <div className="break-words">{blob.activity}</div>}
+						{activity && <div className="break-words">{activity}</div>}
 						<div className="flex justify-between gap-2">
-							<span>Cost</span>
+							<span>{t("Cost")}</span>
 							<span className="tabular-nums text-card-foreground">
 								{planCostLabel(blob.cost, subscriptionLabel(blob.model))}
 							</span>
 						</div>
 						<div className="flex justify-between gap-2">
-							<span>Context</span>
+							<span>{t("Context")}</span>
 							<span className="tabular-nums text-card-foreground" data-testid="activity-blob-context">
 								{blob.context === null
 									? "—"
@@ -477,23 +481,23 @@ function ActivityBlobRow({
 						</div>
 						{blob.model && (
 							<div className="flex justify-between gap-2">
-								<span>Model</span>
+								<span>{t("Model")}</span>
 								<span className="truncate text-card-foreground">{blob.model}</span>
 							</div>
 						)}
 						{blob.steps !== undefined && (
 							<div className="flex justify-between gap-2">
-								<span>Steps</span>
+								<span>{t("Steps")}</span>
 								<span className="tabular-nums text-card-foreground">{blob.steps}</span>
 							</div>
 						)}
 						<a href={`/chat/${blob.chatId}`} className="text-primary hover:underline">
-							Open session →
+							{t("Open session →")}
 						</a>
 					</div>
 					<div className="mt-2 text-muted-foreground/80">
-					{abortState === "failed" && "Abort failed — try again"}
-					{abortState === "pending" && "Stopping…"}
+					{abortState === "failed" && t("Abort failed — try again")}
+					{abortState === "pending" && t("Stopping…")}
 				</div>
 				</div>
 			)}

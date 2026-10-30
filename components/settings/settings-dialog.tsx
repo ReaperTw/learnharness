@@ -52,6 +52,7 @@ import { AppearanceSection, GraphSection } from "./appearance-section.tsx";
 import { KeyboardSection } from "./keyboard-section.tsx";
 import { ChatGPTUIProvider } from "./chatgpt-connection.tsx";
 import { NativeSubscriptionUIProvider } from "./subscription-connections.tsx";
+import { useLocale } from "@/components/locale";
 
 /** Owner (2026-09-20): hints earn their place — mechanics-explaining
  *  prose is out; only the keyboard note stays (storage location is a
@@ -142,6 +143,7 @@ export function SettingsDialogBody({
 	 *  retargets follow it exactly like initialSection below. */
 	initialRow?: string | null;
 }) {
+	const { t, locale, setLocale, persistenceError } = useLocale();
 	const { onAppearanceChange } = useAppearance();
 	const [record, setRecord] = useState<UserSettings | null | undefined>(
 		undefined,
@@ -265,23 +267,23 @@ export function SettingsDialogBody({
 		<div
 			role="dialog"
 			aria-modal="true"
-			aria-label="Settings"
+			aria-label={t("Settings")}
 			data-testid="settings-dialog"
 			className="settings-dialog-pop flex h-[620px] max-h-[85vh] w-[920px] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-card shadow-xl"
 			onClick={(e) => e.stopPropagation()}
 		>
 			{/* Header — the app's quiet CMU title language. */}
 			<header className="flex h-15 shrink-0 items-center gap-3 border-b border-border px-5">
-				<h2 className="font-title text-2xl tracking-tight">Settings</h2>
+				<h2 className="font-title text-2xl tracking-tight">{t("Settings")}</h2>
 				<Hint
 						// Esc closes the dialog (its own listener) — surface it.
-						label="Close"
+						label={t("Close")}
 						binding="escape"
 						side="left"
 					>
 						<button
 					type="button"
-					aria-label="Close settings"
+					aria-label={t("Close settings")}
 					data-testid="settings-close"
 					className="ml-auto size-7 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					onClick={onClose}
@@ -303,7 +305,7 @@ export function SettingsDialogBody({
 				{/* Left nav — text-only, the session-list mono language,
 					    active = bg-accent. */}
 				<nav
-					aria-label="Settings sections"
+					aria-label={t("Settings sections")}
 					data-testid="settings-nav"
 					className="flex w-44 shrink-0 flex-col gap-1 border-r border-border p-2"
 				>
@@ -320,7 +322,7 @@ export function SettingsDialogBody({
 							}`}
 							onClick={() => setActive(s.id)}
 						>
-							{s.label}
+							{t(s.label)}
 						</button>
 					))}
 				</nav>
@@ -342,40 +344,41 @@ export function SettingsDialogBody({
 							className="m-4 rounded-sm border border-red-500/40 px-3 py-2 text-xs text-red-500"
 							data-testid="settings-error"
 						>
-							{error}
+							{t("{section}: {detail}", { section: t(error.split(": ", 1)[0]!), detail: t(error.slice(error.indexOf(": ") + 2)) })}
 						</p>
+					)}
+					{active === "general" && (
+						<SettingsSection title={t("General")} testid="section-general">
+							<label className="flex items-center justify-between gap-3 py-2">
+								<span>{t("Language")}</span>
+								<select data-testid="interface-language" aria-label={t("Language")} value={locale} onChange={(event) => setLocale(event.target.value as "zh-TW" | "en")} className="rounded-sm border border-border bg-background px-2 py-1">
+									<option value="zh-TW">繁體中文（台灣）</option>
+									<option value="en">English</option>
+								</select>
+							</label>
+							<p className="text-xs text-muted-foreground">{t("AI responses follow this language by default. Your instructions may override it.")}</p>
+							{persistenceError && <p role="alert" className="mt-2 text-xs text-red-500">{t(persistenceError)}</p>}
+							{record && <UpdateSettings autoUpdate={record.general?.autoUpdate ?? true} onAutoUpdateChange={(on) => void write("general", { ...record.general, autoUpdate: on })} />}
+						</SettingsSection>
 					)}
 					{record === undefined ? (
 						<p className="px-6 py-5 text-xs text-muted-foreground/70">
-							Loading settings…
+							{t("Loading settings…")}
 						</p>
 					) : record === null ? (
 						<p className="px-6 py-5 text-xs text-muted-foreground/70">
-							Settings could not be loaded — refresh to retry.
+							{t("Settings could not be loaded — refresh to retry.")}
 						</p>
 					) : (
 						<div>
-							{active === "general" && (
-								<SettingsSection
-									title="General"
-									testid="section-general"
-								>
-									<UpdateSettings
-										autoUpdate={record.general?.autoUpdate ?? true}
-										onAutoUpdateChange={(on) =>
-											void write("general", { ...record.general, autoUpdate: on })
-										}
-									/>
-								</SettingsSection>
-							)}
 							{active === "keys" && (
-								<SettingsSection title="Providers" testid="section-keys">
+								<SettingsSection title={t("Providers")} testid="section-keys">
 									<KeysSection initialRow={initialRow ?? undefined} />
 								</SettingsSection>
 							)}
 							{active === "agent" && (
 								<SettingsSection
-									title="Agent"
+									title={t("Agent")}
 									testid="section-agent"
 								>
 									<AgentSection
@@ -397,7 +400,7 @@ export function SettingsDialogBody({
 							)}
 							{active === "appearance" && (
 								<SettingsSection
-									title="Appearance"
+									title={t("Appearance")}
 									testid="section-appearance"
 								>
 									<AppearanceSection
@@ -410,7 +413,7 @@ export function SettingsDialogBody({
 							)}
 							{active === "graph" && (
 								<SettingsSection
-									title="Graph"
+									title={t("Graph")}
 									testid="section-graph"
 								>
 									<GraphSection
@@ -423,8 +426,8 @@ export function SettingsDialogBody({
 							)}
 							{active === "keyboard" && (
 								<SettingsSection
-									title="Keyboard"
-									hint="Stored on this device"
+									title={t("Keyboard")}
+									hint={t("Stored on this device")}
 									testid="section-keyboard"
 								>
 									<KeyboardSection />

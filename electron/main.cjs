@@ -37,6 +37,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
+const { readLocale, writeLocale } = require("./locale.cjs");
 
 // Mirrors SIDEBAR_AUTOCLOSE in components/sidebar.tsx — keep in sync (the
 // renderer owns the number; this is the IPC widen target).
@@ -581,7 +582,7 @@ function applyZoom(win, factor) {
 
 /** macOS needs an application menu with the Edit roles — without one,
  *  Cmd+C/V/A do nothing in the renderer. Everything else stays minimal. */
-function installMenu() {
+function installMenu(locale = "zh-TW") {
 	const template = [
 		{
 			label: app.name,
@@ -628,6 +629,25 @@ function installMenu() {
 		},
 		{ role: "windowMenu" },
 	];
+	const labels = {
+		about: ["About LearnHarness", "關於 LearnHarness"], hide: ["Hide LearnHarness", "隱藏 LearnHarness"],
+		hideOthers: ["Hide Others", "隱藏其他程式"], quit: ["Quit", "結束"],
+		undo: ["Undo", "復原"], redo: ["Redo", "重做"], cut: ["Cut", "剪下"],
+		copy: ["Copy", "複製"], paste: ["Paste", "貼上"], selectAll: ["Select All", "全選"],
+		reload: ["Reload", "重新載入"], toggleDevTools: ["Toggle Developer Tools", "切換開發者工具"],
+		togglefullscreen: ["Toggle Full Screen", "切換全螢幕"], windowMenu: ["Window", "視窗"],
+		"Check for Updates…": ["Check for Updates…", "檢查更新…"], Edit: ["Edit", "編輯"],
+		View: ["View", "檢視"], "Actual Size": ["Actual Size", "實際大小"],
+		"Zoom In": ["Zoom In", "放大"], "Zoom Out": ["Zoom Out", "縮小"],
+	};
+	const localize = (items) => {
+		for (const item of items) {
+			const label = labels[item.role ?? item.label];
+			if (label) item.label = label[locale === "en" ? 0 : 1];
+			if (Array.isArray(item.submenu)) localize(item.submenu);
+		}
+	};
+	localize(template);
 	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -709,7 +729,18 @@ async function main() {
 		await openWebSubscriptionBrowser(action, new URL(url).origin, { openExternal: (target) => shell.openExternal(target) });
 	});
 
-	installMenu();
+	let initialLocale = "zh-TW";
+	try { initialLocale = readLocale(app.getPath("userData")); } catch (error) { log(`language preference: ${error.message}`); }
+	installMenu(initialLocale);
+	ipcMain.handle("lh:locale:get", (event) => {
+		if (!trustedAppWindows.has(BrowserWindow.fromWebContents(event.sender)) || !trustedSender(event, new URL(url).origin, BrowserWindow)) throw new Error("Untrusted desktop request.");
+		return readLocale(app.getPath("userData"));
+	});
+	ipcMain.handle("lh:locale:set", (event, locale) => {
+		if (!trustedAppWindows.has(BrowserWindow.fromWebContents(event.sender)) || !trustedSender(event, new URL(url).origin, BrowserWindow)) throw new Error("Untrusted desktop request.");
+		writeLocale(app.getPath("userData"), locale);
+		installMenu(locale);
+	});
 
 	// Auto-update (Wave C): wire the updater before the window so the
 	// banner channel is live from first paint; the first check and the 24h

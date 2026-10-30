@@ -40,6 +40,8 @@ ipcRenderer.on("lh:open-settings", (_event, section) => {
 
 contextBridge.exposeInMainWorld("lh", {
 	platform: process.platform,
+	getLocale: () => ipcRenderer.invoke("lh:locale:get"),
+	setLocale: (locale) => ipcRenderer.invoke("lh:locale:set", locale),
 	// Resolve only a renderer-supplied, OS-backed File. No filesystem API,
 	// uploads, copies, or DOM File IPC to main; sandbox/isolation stay on.
 	getPathForFile: (file) => webUtils.getPathForFile(file),

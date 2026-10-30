@@ -28,6 +28,7 @@ import type {
 import { BACKGROUND_MODEL_ROLES, COMPACTION_THRESHOLD_FLOOR, CUSTOM_MODEL_PIN_FLOOR, EXTRACTION_CHUNK_TOKENS_FLOOR, MODEL_SLOTS } from "../core/settings.ts";
 import { WRITABLE_TOOL_KEYS } from "../core/pending.ts";
 import { isDictationLanguage } from "../core/dictation.ts";
+import { isLocale } from "../core/locale.ts";
 
 /** Parsed-or-rejected — `ok: false` carries the 400's error message. */
 export type SettingsBodyResult<T> =
@@ -41,8 +42,13 @@ export function parseSettingsBody(body: unknown): SettingsBodyResult<ChatSetting
 	const raw = body as {
 		model?: { provider?: unknown; id?: unknown };
 		thinkingLevel?: unknown;
+		responseLocale?: unknown;
 	};
 	const settings: ChatSettings = {};
+	if (raw.responseLocale !== undefined) {
+		if (!isLocale(raw.responseLocale)) return { ok: false, error: "Unsupported response language" };
+		settings.responseLocale = raw.responseLocale;
+	}
 	if (raw.model !== undefined) {
 		if (
 			typeof raw.model !== "object" ||
