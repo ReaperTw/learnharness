@@ -82,6 +82,7 @@ npm test           # deterministic, no LLM, no network
 On Windows, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1` once to add **LearnHarness 繁體中文** to your Start menu's Programs folder. Search for **LearnHarness** in Start to launch the local server and desktop window together. The launcher reuses a running development server only when its lock identifies this project and a live Next.js process; otherwise it starts its own server. It waits for a successful HTTP response before opening the app. Repeated launches activate the existing window instead of starting more servers. Closing the app stops only a server created by the launcher, never a borrowed one. Node.js and installed dependencies (`npm ci`) are required. Startup logs are under `%LOCALAPPDATA%\LearnHarness\launcher`. Recreate the shortcut after moving the project folder.
 
 The Windows shortcut uses a console-free launcher and the same AppUserModelID as the desktop window, so the taskbar uses the LearnHarness icon and groups the running app with its shortcut. Source-mode taskbar relaunch uses the same launcher; it does not launch bare Electron.
+The on-screen Next.js development indicator is disabled; compilation and runtime error reporting remain enabled.
 
 See the [development guide](docs/development.md), [architecture](docs/architecture.md), and [desktop release guide](docs/desktop-release.md).
 
