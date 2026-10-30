@@ -52,6 +52,8 @@ const PRODUCT_NAME = "LearnHarness";
 // Must run before the LH_DEV_URL suffix below — dev becomes
 // "LearnHarness-dev".
 app.setName(PRODUCT_NAME);
+// Match the installed shortcut and electron-builder.yml for taskbar grouping.
+if (process.platform === "win32") app.setAppUserModelId("com.learnharness.LearnHarness");
 const AUTH_FILE = () => path.join(app.getPath("userData"), "auth.json");
 const DATA_DIR = () => path.join(app.getPath("userData"), "data");
 
@@ -292,6 +294,7 @@ function createWindow(url) {
 		width: 1440,
 		height: 900,
 		title: PRODUCT_NAME,
+		...(!app.isPackaged && process.platform === "win32" ? { icon: path.join(__dirname, "..", "build", "icon.ico") } : {}),
 		// Merged chrome (owner, 2026-09-17): the system title bar is gone;
 		// the app's own 60px header bands ARE the title bar. The traffic
 		// lights float over the sidebar's LH wordmark band, vertically
@@ -338,6 +341,15 @@ function createWindow(url) {
 		minWidth: 640,
 		minHeight: 600,
 	});
+	if (process.platform === "win32" && !app.isPackaged) {
+		win.setAppDetails({
+			appId: "com.learnharness.LearnHarness",
+			appIconPath: path.join(__dirname, "..", "build", "icon.ico"),
+			appIconIndex: 0,
+			relaunchCommand: `"${path.join(process.env.SystemRoot, "System32", "wscript.exe")}" "${path.join(__dirname, "..", "scripts", "start-desktop.vbs")}"`,
+			relaunchDisplayName: PRODUCT_NAME,
+		});
+	}
 
 	trustedAppWindows.add(win);
 	win.once("closed", () => trustedAppWindows.delete(win));
