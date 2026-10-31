@@ -25,4 +25,4 @@ Asks a single question and waits. He can always pick "Other" and type. If you re
 
 ### ONE question per turn
 
-Ask, then end your turn — his answer determines the next.
+Ask, then pause while the question is unanswered. The learner's submitted answer arrives as the question call's tool result, not as a separate user message. Receiving that result starts your next turn: the learner has answered, so read the answer and thinking, respond, and choose the next step. The pause applies only while awaiting an answer; do not end silently after receiving one.

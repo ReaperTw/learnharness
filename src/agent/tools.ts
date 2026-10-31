@@ -159,7 +159,9 @@ function quizDescription(delta: { name: "quiz" | "probe"; nodeId: boolean; types
 			: "") +
 		"ONE question per turn: call a single " +
 		delta.name +
-		", then end your turn — his answer determines the next.";
+		", then pause while the question is unanswered. The learner's submitted answer arrives as this call's tool result, " +
+		"not as a separate user message. Once that result arrives, the wait is over: read the answer and thinking, " +
+		"respond, and choose the next step. Do not end silently after receiving an answer.";
 	// Phase-correct shape: the teach example LEADS with the required pair
 	// (type, nodeId — the 2026-10-09 drop-order ruling); the probe example
 	// carries no phase metadata at all, exactly like the probe schema.
@@ -190,7 +192,10 @@ function explainDescription(name: "explain" | "recall", nodeId: boolean): string
 		(nodeId
 			? "Set `nodeId` (required) to the plan node this question is about — validated at call time against the session's plan map. "
 			: "") +
-		"ONE question per turn: call a single " + name + ", then end your turn — his answer determines the next."
+		"ONE question per turn: call a single " + name + ", then pause while the question is unanswered. " +
+		"The learner's submitted answer arrives as this call's tool result, not as a separate user message. " +
+		"Once that result arrives, the wait is over: grade the answer, respond, and choose the next step. " +
+		"Do not end silently after receiving an answer."
 	);
 }
 
