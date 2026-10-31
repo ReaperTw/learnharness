@@ -1,22 +1,10 @@
-import { readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string; homepage: string };
-const projectRoot = fileURLToPath(new URL(".", import.meta.url));
-const dependencyRoot = realpathSync(new URL("./node_modules", import.meta.url));
-const dependencyRelative = relative(projectRoot, dependencyRoot);
 
 const nextConfig: NextConfig = {
 	devIndicators: false,
-	// Allow external node_modules junctions without watching the whole drive.
-	experimental: {
-		turbopackAdditionalRoots:
-			isAbsolute(dependencyRelative) || dependencyRelative.startsWith("..")
-				? { dependencies: { path: dirname(dependencyRoot) } }
-				: undefined,
-	},
 	// Public build metadata only; no new runtime Electron version API.
 	env: { LH_VERSION: pkg.version, LH_HOMEPAGE: pkg.homepage },
 	// Desktop target (Electron wrapper, 2026-09-17): standalone output = a

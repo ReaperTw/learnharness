@@ -1,5 +1,15 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
+$sourceRoot = $root
+$runtime = Join-Path $env:LOCALAPPDATA 'AZA-Local-Development\learnharness'
+$sourceMarker = Join-Path $runtime '.aza-source-root'
+if ($root -eq $runtime -and (Test-Path -LiteralPath $sourceMarker)) {
+    $sourceRoot = (Get-Content -LiteralPath $sourceMarker -Raw).Trim()
+}
+$syncRoot = Join-Path $env:SystemDrive 'Drivesync'
+if ($sourceRoot.StartsWith("$syncRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+    $root = $runtime
+}
 $next = Join-Path $root 'node_modules\next\dist\bin\next'
 $electron = Join-Path $root 'node_modules\electron\cli.js'
 $logs = Join-Path $env:LOCALAPPDATA 'LearnHarness\launcher'
@@ -9,7 +19,7 @@ $locked = $false
 try {
     $node = (Get-Command node -ErrorAction Stop).Source
     if (!(Test-Path $next) -or !(Test-Path $electron)) {
-        throw 'Dependencies are missing. Run npm ci in the project folder first.'
+        throw "Dependencies are missing. Run npm ci in $root first, outside the synced source folder."
     }
     $admissionDeadline = (Get-Date).AddSeconds(120)
     while (!$locked -and (Get-Date) -lt $admissionDeadline) {
@@ -27,6 +37,17 @@ try {
     }
     if (!$locked) { throw 'Another LearnHarness launcher is still starting. Please try again shortly.' }
     New-Item -ItemType Directory -Force -Path $logs | Out-Null
+    if ($sourceRoot -ne $root) {
+        if (!(Test-Path -LiteralPath (Join-Path $sourceRoot 'package.json'))) {
+            throw "The synced source folder is unavailable: $sourceRoot"
+        }
+        # Mirror code only. Excluded runtime state is never purged or overwritten.
+        & robocopy.exe $sourceRoot $root /MIR /XJ /XD node_modules .next .git data /XF .git .aza-source-root auth.json '*credentials.json*' tsconfig.tsbuildinfo /R:1 /W:1 /NFL /NDL /NP /NJH /NJS | Out-Null
+        if ($LASTEXITCODE -ge 8) { throw "Could not refresh the local runtime from $sourceRoot (robocopy $LASTEXITCODE)." }
+        Set-Content -LiteralPath $sourceMarker -Value $sourceRoot -Encoding UTF8
+        $env:LH_DATA_DIR = Join-Path $sourceRoot 'data'
+        $env:LH_AUTH_FILE = Join-Path $sourceRoot 'auth.json'
+    }
     $url = $null
     $lockFile = Join-Path $root '.next\dev\lock'
     if (Test-Path $lockFile) {
