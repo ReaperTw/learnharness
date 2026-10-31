@@ -10,7 +10,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, it, mock } from "node:test";
-import { createFauxCore, fauxAssistantMessage, fauxText, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
+import { createFauxCore, fauxAssistantMessage, fauxText, fauxThinking, fauxToolCall, type FauxResponseStep } from "@earendil-works/pi-ai";
 import { transformMessages } from "@earendil-works/pi-ai/api/transform-messages";
 import { Type } from "typebox";
 import type { AgentBuildOptions, TeachingAgent } from "../src/agent/teacher-agent.ts";
@@ -37,7 +37,7 @@ const { jobStore } = await import("../src/store/jobs.ts");
 const { subscribe } = await import("../src/core/events.ts");
 const { buildAnswer, normalizeOptions, resolveCorrect } = await import("../src/core/question-core.ts");
 const { ChatInputError, endsInFailedTurn, failedResponseAtEnd, inputAppends, parseChatInput, retryDrops } = await import("../src/core/input-events.ts");
-const { INTERRUPTED_TEXT, asAgentMessages, hasProbeDone, newHandoffMessage, newPlanBlockMessage, newUserMessage, reconstructRequestCause, toLlmMessages } = await import("../src/core/native-messages.ts");
+const { INTERRUPTED_TEXT, asAgentMessages, hasProbeDone, newAnswerResult, newHandoffMessage, newPlanBlockMessage, newUserMessage, reconstructRequestCause, toLlmMessages } = await import("../src/core/native-messages.ts");
 const { phaseAt3Lh } = await import("../src/core/phases.ts");
 const { newCompactionMarker } = await import("../src/core/compaction.ts");
 
@@ -171,6 +171,18 @@ describe("failed-response Retry (issue #110)", () => {
 		assert.deepEqual(roles(chat.id), ["user", "assistant", "assistant"]);
 		assert.deepEqual(contexts.at(-1), ["user"]);
 		assert.match(JSON.stringify(saved.at(-1)), /Hello again/);
+	});
+	it("treats persisted empty completions as retryable without altering history or replaying tool answers", () => {
+		const user = newUserMessage("hi");
+		const call = fauxAssistantMessage([fauxToolCall("quiz", QUIZ_INPUT, { id: "call-empty" })], { stopReason: "toolUse" });
+		const answer = newAnswerResult("call-empty", "quiz", gradedAnswer());
+		const empty = { ...fauxAssistantMessage([fauxThinking("Only internal reasoning.")]), id: "empty-tail", stopReason: "stop" } as LhMessage;
+		const messages: LhMessage[] = [user, call, answer, empty];
+		assert.ok(endsInFailedTurn(messages));
+		assert.equal(failedResponseAtEnd(messages)?.errorMessage, "ChatGPT returned no answer. Retry when ready.");
+		assert.deepEqual([...retryDrops(messages)], ["empty-tail"]);
+		assert.equal(messages.at(-1), empty, "saved history remains unchanged");
+		assert.equal(messages.filter((message) => message.role === "toolResult" && message.toolCallId === "call-empty").length, 1);
 	});
 
 	it("preserves partial text and its usage reference before the replacement succeeds", { timeout: 5_000 }, async () => {

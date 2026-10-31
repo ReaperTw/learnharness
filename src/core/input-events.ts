@@ -244,6 +244,12 @@ export function inputAppends(
 	}
 }
 
+/** A completed assistant with no learner-facing text or tool call is an empty response. */
+function isEmptyCompletedResponse(message: LhMessage): message is Extract<LhMessage, { role: "assistant" }> {
+	return message.role === "assistant" && message.stopReason === "stop" &&
+		!message.content.some((block) => block.type === "toolCall" || (block.type === "text" && block.text.trim().length > 0));
+}
+
 /** The failure owning the ephemeral banner. Plan presentation and
  * compaction do not resolve an error; substantive later input/output does.
  * This is deliberately broader than Retry eligibility below. */
@@ -251,7 +257,10 @@ export function failedResponseAtEnd(messages: readonly LhMessage[]): Extract<LhM
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const m = messages[i]!;
 		if (m.role === "custom" && (m.customType === "plan-block" || m.customType === "compaction")) continue;
-		return m.role === "assistant" && m.stopReason === "error" ? m : undefined;
+		if (m.role === "assistant" && (m.stopReason === "error" || isEmptyCompletedResponse(m))) {
+			return isEmptyCompletedResponse(m) ? { ...m, stopReason: "error", errorMessage: "ChatGPT returned no answer. Retry when ready." } : m;
+		}
+		return undefined;
 	}
 	return undefined;
 }
@@ -293,7 +302,7 @@ function failedTail(messages: readonly LhMessage[]): { ids: Set<string>; before:
 	let i = messages.length - 1;
 	for (; i >= 0; i--) {
 		const m = messages[i]!;
-		if (m.role === "assistant" && m.stopReason === "error") ids.add(m.id);
+		if (m.role === "assistant" && (m.stopReason === "error" || isEmptyCompletedResponse(m))) ids.add(m.id);
 		else if (!(m.role === "custom" && m.customType === "plan-block")) break;
 	}
 	return { ids, before: messages[i] };

@@ -15,6 +15,7 @@ export function chatGPTStreamError(message: string): string {
 	if (/cancel|abort|closed|disconnect/i.test(message)) return "ChatGPT request cancelled or connection closed. No API-key fallback was used.";
 	if (/catalog|model/.test(message)) return "The selected model is unavailable for this ChatGPT account. Refresh Providers and explicitly choose an available model. No API-key fallback was used.";
 	if (/incomplete|terminal|interrupted|stop reason/.test(message)) return "ChatGPT returned an incomplete response. Retry when ready; no API-key fallback was used.";
+	if (/empty response/i.test(message)) return "ChatGPT returned no answer. Retry when ready; no API-key fallback was used.";
 	return "ChatGPT request failed. Check your connection and ChatGPT usage, then retry. No API-key fallback was used.";
 }
 
@@ -100,6 +101,9 @@ export function chatGPTStream(background: () => boolean, lifecycle?: ChatGPTDisp
 					partial = { ...message, provider: "chatgpt" };
 					if (event.type === "done") {
 						if (!completed || failure) throw new Error(failure || "missing terminal response.completed");
+						const hasToolCall = partial.content.some((block) => block.type === "toolCall");
+						const hasText = partial.content.some((block) => block.type === "text" && block.text.trim().length > 0);
+						if (!hasToolCall && !hasText) throw new Error("empty response");
 						terminal = true;
 						output.push({ ...event, message: partial });
 					} else if (event.type === "error") {

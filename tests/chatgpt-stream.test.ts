@@ -46,7 +46,7 @@ after(() => {
 	if (originalKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = originalKey;
 });
 const usage = { input_tokens: 10, output_tokens: 4, total_tokens: 14, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } };
-const complete = (output: unknown[] = []) => ({ type: "response.completed", response: { id: "resp_scratch", status: "completed", output, usage } });
+const complete = (output: unknown[] = [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "A completed scratch response." }] }]) => ({ type: "response.completed", response: { id: "resp_scratch", status: "completed", output, usage } });
 const context = () => normalizeContext({ systemPrompt: "Scratch teacher instructions", messages: [{ role: "user", content: [{ type: "text", text: "Scratch learning material" }, { type: "image", data: "c2NyYXRjaA==", mimeType: "image/png" }], timestamp: 1 }], tools: [{ name: "scratch_tool", description: "Scratch local tool", parameters: Type.Object({ value: Type.String() }) }] });
 
 test("catalog intersects supported capabilities, without inventing model limits", () => {
@@ -108,6 +108,22 @@ test("no terminal completed is never success; late quota/incomplete streams are 
 		if (JSON.stringify(events).includes("usage_limit")) assert(result.errorMessage?.includes("https://chatgpt.com/settings/usage"));
 	}
 });
+test("completed responses without learner-facing text or tools fail; text and tool-only responses succeed", async () => {
+	const engine = piEngineForSpec({ provider: "chatgpt", id: model.id }, false);
+	for (const output of [[], [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "   " }] }], [{ type: "reasoning", summary: [{ type: "summary_text", text: "Thinking only." }] }]]) {
+		responseEvents = [complete(output)];
+		const result = await engine.streamFn(engine.model, context()).result();
+		assert.equal(result.stopReason, "error");
+		assert.match(result.errorMessage ?? "", /returned no answer/i);
+	}
+	const textItem = { id: "msg_scratch", type: "message", role: "assistant", content: [{ type: "output_text", text: "A completed scratch response.", annotations: [] }] };
+	responseEvents = [{ type: "response.output_item.added", output_index: 0, item: { ...textItem, content: [] } }, { type: "response.output_text.delta", output_index: 0, content_index: 0, delta: "A completed scratch response." }, { type: "response.output_item.done", output_index: 0, item: textItem }, complete([textItem])];
+	assert.equal((await engine.streamFn(engine.model, context()).result()).stopReason, "stop");
+	const tool = { type: "function_call", id: "fc_scratch", call_id: "call_scratch", name: "scratch_tool", namespace: "learnharness", arguments: "{\"value\":\"ok\"}", status: "completed" };
+	responseEvents = [{ type: "response.output_item.added", output_index: 0, item: tool }, { type: "response.output_item.done", output_index: 0, item: tool }, complete([tool])];
+	assert.equal((await engine.streamFn(engine.model, context()).result()).stopReason, "toolUse");
+});
+
 
 test("OAuth failure and background denial NEVER use ambient OPENAI_API_KEY", async () => {
 	requests = [];
